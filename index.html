@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出演者検索からのYouTube動画抽出ツール</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <header class="mb-8">
+      <h1 class="text-2xl md:text-3xl font-bold text-slate-900">出演者検索からのYouTube動画抽出ツール</h1>
+      <p class="mt-2 text-sm text-slate-500">
+        指定した出演者名で当月に公開された動画を検索し、タイトル・説明欄に一致する動画だけを抽出します。
+      </p>
+    </header>
+
+    <!-- 入力フォーム -->
+    <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+      <form id="search-form" class="space-y-5">
+        <div>
+          <label for="performers" class="block text-sm font-medium text-slate-700 mb-1">
+            出演者名 <span class="text-red-500">*</span>
+            <span class="font-normal text-slate-400">（カンマ区切りで<strong class="text-slate-500">最大3人まで</strong>。この名前で検索し、タイトル・説明欄との部分一致で判定します。例: タモリ,たけし,さんま）</span>
+          </label>
+          <input
+            type="text" id="performers" name="performers"
+            placeholder="例: タモリ,たけし,さんま（最大3人まで）"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+          <p class="mt-2 text-xs text-slate-400">
+            ※ タイトル・説明欄との突き合わせ自体は部分一致です（例:「森田一義」で「森田」を含む動画も判定対象になります）。ただしこの名前はYouTube検索のクエリとしても使われるため、苗字だけなど短すぎる入力だと、無関係な動画に埋もれて検索結果に出てこないことがあります。できるだけ<strong class="text-slate-500">フルネームでの入力</strong>を推奨します。
+          </p>
+        </div>
+
+        <div>
+          <label for="access-code" class="block text-sm font-medium text-slate-700 mb-1">
+            アクセスコード <span class="text-red-500">*</span>
+            <span class="font-normal text-slate-400">（配布された合い言葉を入力。このブラウザ内にのみ保存されます）</span>
+          </label>
+          <div class="flex gap-2">
+            <input
+              type="password" id="access-code" name="accessCode"
+              placeholder="配布されたアクセスコード"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+            <button type="button" id="toggle-code" class="shrink-0 px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-600 hover:bg-slate-50">
+              表示
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">
+            ※ YouTube Data APIキーはサーバー側で管理しており、このツールでは入力・保存の必要はありません。
+          </p>
+        </div>
+
+        <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-500 leading-relaxed">
+          ※ 画面表示・CSVダウンロードの項目は「動画タイトル・動画URL・出演者・再生数・高評価数」の5項目です。
+          運営者側では検索日時や使用したアクセスコードなどを含む記録用データ（8項目）を別途保管していますが、これは社内の記録・サポート対応のためのものです。お客様への提供物である画面表示・CSVの内容とは項目数が異なります。
+        </div>
+
+        <div class="flex items-center gap-3 pt-1">
+          <button
+            type="submit" id="search-button"
+            class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg id="loading-spinner" class="hidden animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span id="search-button-label">検索開始</span>
+          </button>
+          <span id="search-period-note" class="text-xs text-slate-400"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- エラー/情報メッセージ -->
+    <div id="message-area" class="mb-6 hidden"></div>
+
+    <!-- 結果 -->
+    <section id="results-section" class="hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold text-slate-900">
+          検索結果 <span id="result-count" class="text-slate-400 font-normal text-sm"></span>
+        </h2>
+        <button
+          id="csv-button"
+          class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+        >
+          CSVダウンロード
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-100 text-slate-600">
+            <tr>
+              <th class="text-left font-semibold px-4 py-3 whitespace-nowrap">動画タイトル</th>
+              <th class="text-left font-semibold px-4 py-3 whitespace-nowrap">動画URL</th>
+              <th class="text-left font-semibold px-4 py-3 whitespace-nowrap">出演者</th>
+              <th class="text-right font-semibold px-4 py-3 whitespace-nowrap">再生数</th>
+              <th class="text-right font-semibold px-4 py-3 whitespace-nowrap">高評価数</th>
+            </tr>
+          </thead>
+          <tbody id="results-body" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="mt-12 pt-6 border-t border-slate-200 text-xs text-slate-400 leading-relaxed">
+      <p>
+        ※ YouTube Data APIキーはGoogle Apps Script側（サーバー）にのみ保管されており、このページのコードやブラウザのlocalStorageには一切含まれません。
+        画面から送信されるのは出演者名とアクセスコードのみです。アクセスコードは利用制御のための合い言葉であり、YouTube APIキーそのものではありません。
+      </p>
+    </footer>
+
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ===== 窓口サーバー（Google Apps Script）のWebアプリURL =====
+  // google-apps-script/Code.gs をデプロイして発行された「.../exec」で終わるURLに書き換えてください。
+  const GAS_ENDPOINT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
+  // 1回のリクエストで受け付ける出演者名の数の上限（Code.gs側のMAX_PERFORMERS_PER_REQUESTと合わせること）
+  const MAX_PERFORMERS = 3;
+
+  const els = {
+    form: document.getElementById('search-form'),
+    performers: document.getElementById('performers'),
+    accessCode: document.getElementById('access-code'),
+    toggleCode: document.getElementById('toggle-code'),
+    searchButton: document.getElementById('search-button'),
+    searchButtonLabel: document.getElementById('search-button-label'),
+    spinner: document.getElementById('loading-spinner'),
+    periodNote: document.getElementById('search-period-note'),
+    messageArea: document.getElementById('message-area'),
+    resultsSection: document.getElementById('results-section'),
+    resultsBody: document.getElementById('results-body'),
+    resultCount: document.getElementById('result-count'),
+    csvButton: document.getElementById('csv-button'),
+  };
+
+  const STORAGE_KEY = 'yt-extractor-access-code';
+  let currentResults = [];
+
+  // ---- 初期化 ----
+  function init() {
+    const savedCode = localStorage.getItem(STORAGE_KEY);
+    if (savedCode) els.accessCode.value = savedCode;
+
+    const { start, end } = getCurrentMonthRange();
+    els.periodNote.textContent =
+      `対象期間: ${formatJapaneseDate(start)} 〜 ${formatJapaneseDate(end)}（当月分）`;
+
+    els.form.addEventListener('submit', onSubmit);
+    els.toggleCode.addEventListener('click', onToggleCodeVisibility);
+    els.csvButton.addEventListener('click', onDownloadCsv);
+  }
+
+  function onToggleCodeVisibility() {
+    const isPassword = els.accessCode.type === 'password';
+    els.accessCode.type = isPassword ? 'text' : 'password';
+    els.toggleCode.textContent = isPassword ? '隠す' : '表示';
+  }
+
+  // ---- 日付ユーティリティ（画面表示用。実際の絞り込みはサーバー側で行う）----
+  function getCurrentMonthRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    return { start, end: now };
+  }
+
+  function formatJapaneseDate(date) {
+    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  }
+
+  // ---- メッセージ表示 ----
+  function showMessage(text, type = 'error') {
+    const styles = {
+      error: 'bg-red-50 border border-red-200 text-red-700',
+      info: 'bg-slate-100 border border-slate-200 text-slate-600',
+    };
+    els.messageArea.className = `mb-6 rounded-lg px-4 py-3 text-sm ${styles[type]}`;
+    els.messageArea.textContent = text;
+    els.messageArea.classList.remove('hidden');
+  }
+
+  function clearMessage() {
+    els.messageArea.classList.add('hidden');
+    els.messageArea.textContent = '';
+  }
+
+  function setLoading(isLoading) {
+    els.searchButton.disabled = isLoading;
+    els.spinner.classList.toggle('hidden', !isLoading);
+    els.searchButtonLabel.textContent = isLoading ? '検索中...' : '検索開始';
+  }
+
+  // ---- メイン処理 ----
+  async function onSubmit(e) {
+    e.preventDefault();
+    clearMessage();
+    clearResults();
+
+    const rawPerformers = els.performers.value.trim();
+    const accessCode = els.accessCode.value.trim();
+
+    if (!rawPerformers) {
+      showMessage('出演者名を入力してください。');
+      return;
+    }
+
+    const performerCount = rawPerformers
+      .split(/[,、]/)
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0).length;
+
+    if (performerCount > MAX_PERFORMERS) {
+      showMessage(`出演者名は${MAX_PERFORMERS}人までです（現在${performerCount}人）。`);
+      return;
+    }
+
+    if (!accessCode) {
+      showMessage('アクセスコードを入力してください。');
+      return;
+    }
+    if (GAS_ENDPOINT_URL.includes('YOUR_DEPLOYMENT_ID')) {
+      showMessage('管理者向けエラー: GAS_ENDPOINT_URL が未設定です。index.html を確認してください。');
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, accessCode);
+
+    setLoading(true);
+    try {
+      const data = await callBackend(rawPerformers, accessCode);
+
+      if (data.error) {
+        showMessage(data.error);
+        return;
+      }
+
+      const results = data.results || [];
+      if (results.length === 0) {
+        showMessage('該当する動画が見つかりませんでした。');
+        return;
+      }
+
+      currentResults = results;
+      renderResults(results);
+    } catch (err) {
+      console.error(err);
+      showMessage(err.message || '検索中にエラーが発生しました。');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ---- 窓口サーバー（GAS）呼び出し ----
+  async function callBackend(rawPerformers, accessCode) {
+    const url = new URL(GAS_ENDPOINT_URL);
+    url.searchParams.set('performers', rawPerformers);
+    url.searchParams.set('code', accessCode);
+
+    let response;
+    try {
+      response = await fetch(url.toString());
+    } catch (networkErr) {
+      throw new Error('サーバーへの通信に失敗しました。ネットワーク接続、またはGAS_ENDPOINT_URLの設定を確認してください。');
+    }
+
+    if (!response.ok) {
+      throw new Error(`サーバーエラーが発生しました（HTTP ${response.status}）。`);
+    }
+
+    return response.json();
+  }
+
+  // ---- 結果描画 ----
+  function clearResults() {
+    currentResults = [];
+    els.resultsBody.innerHTML = '';
+    els.resultsSection.classList.add('hidden');
+  }
+
+  function renderResults(rows) {
+    els.resultsBody.innerHTML = '';
+
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50';
+      tr.innerHTML = `
+        <td class="px-4 py-3 max-w-md">${escapeHtml(row.title)}</td>
+        <td class="px-4 py-3">
+          <a href="${escapeHtml(row.url)}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline break-all">
+            ${escapeHtml(row.url)}
+          </a>
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(row.performers)}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">${row.viewCount !== null && row.viewCount !== undefined ? Number(row.viewCount).toLocaleString('ja-JP') : '非公開'}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">${row.likeCount !== null && row.likeCount !== undefined ? Number(row.likeCount).toLocaleString('ja-JP') : '非公開'}</td>
+      `;
+      els.resultsBody.appendChild(tr);
+    }
+
+    els.resultCount.textContent = `（${rows.length}件）`;
+    els.resultsSection.classList.remove('hidden');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---- CSV出力 ----
+  function onDownloadCsv() {
+    if (currentResults.length === 0) return;
+
+    const header = ['動画タイトル', '動画URL', '出演者', '再生数', '高評価数'];
+    const lines = [header.join(',')];
+
+    for (const row of currentResults) {
+      lines.push([
+        csvEscape(row.title),
+        csvEscape(row.url),
+        csvEscape(row.performers),
+        row.viewCount !== null && row.viewCount !== undefined ? row.viewCount : '',
+        row.likeCount !== null && row.likeCount !== undefined ? row.likeCount : '',
+      ].join(','));
+    }
+
+    const csvContent = '﻿' + lines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `youtube_results_${formatDateForFilename(new Date())}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function csvEscape(value) {
+    const str = String(value);
+    if (/[",\r\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+
+  function formatDateForFilename(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}${m}${d}`;
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
