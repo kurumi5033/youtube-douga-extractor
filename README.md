@@ -34,6 +34,8 @@
 
 ## 1. YouTube Data API v3 キーの取得手順
 
+> 🔰 **文字だけだと分かりにくい場合**: 図解つきのやさしいガイドを用意しています。→ [YouTube APIキーの取り方（図解ガイド）](docs/api-key-guide.html)
+
 1. [Google Cloud Console](https://console.cloud.google.com/) にアクセスし、Googleアカウントでログインする。
 2. 画面上部のプロジェクト選択メニューから「新しいプロジェクト」を作成する（例: `youtube-extractor`）。既存プロジェクトを流用してもよい。
 3. 左メニューから「APIとサービス」→「ライブラリ」を開く。

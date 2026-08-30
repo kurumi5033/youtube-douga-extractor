@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube APIキーの取り方（図解ガイド）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .fake-window { border: 2px solid #cbd5e1; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 14px rgba(15,23,42,.08); }
+  .fake-titlebar { background: #f1f5f9; padding: 8px 12px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #e2e8f0; }
+  .fake-dot { width: 10px; height: 10px; border-radius: 999px; }
+  .fake-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #4f46e5; color: #fff; font-weight: 700; font-size: .8rem;
+    padding: 8px 14px; border-radius: 8px; position: relative;
+  }
+  .fake-menu-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: .78rem; color: #475569;
+  }
+  .fake-menu-item.active { background: #eef2ff; color: #4338ca; font-weight: 700; }
+  .point-ring {
+    position: absolute; inset: -8px; border: 3px solid #f43f5e; border-radius: 12px;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: .5; } }
+  .step-num {
+    width: 44px; height: 44px; border-radius: 999px; background: #4f46e5; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(79,70,229,.35);
+  }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-3xl mx-auto px-4 py-10">
+
+    <a href="../README.md" class="text-xs text-indigo-600 hover:underline">&larr; READMEに戻る</a>
+
+    <header class="mt-4 mb-10 text-center">
+      <div class="text-5xl mb-3">🔑</div>
+      <h1 class="text-3xl font-extrabold text-slate-900">YouTube APIキーの取り方</h1>
+      <p class="mt-3 text-slate-500">
+        写真つき・やさしいことばで説明します。ゆっくり順番にやれば大丈夫です。
+      </p>
+    </header>
+
+    <!-- APIキーってなに -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+      <h2 class="text-lg font-bold text-slate-900 mb-3">🤔 そもそも「APIキー」ってなに？</h2>
+      <p class="text-slate-600 leading-relaxed">
+        このツールが YouTube に「動画をさがして！」とお願いするとき、
+        <strong class="text-indigo-600">「これは私です」と証明するための、特別なパスワード</strong>が必要です。
+        それが「APIキー」です。おうちの鍵や、図書館の利用カードのようなものだと思ってください。
+        Googleのサイトで、<strong>無料で</strong>もらうことができます。
+      </p>
+    </section>
+
+    <!-- 全体の流れ -->
+    <section class="mb-10">
+      <h2 class="text-lg font-bold text-slate-900 mb-4 text-center">📍 ぜんぶで4つのステップです</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+          <div class="text-2xl mb-1">🔐</div>
+          <div class="text-xs font-bold text-slate-700">① ログイン</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+          <div class="text-2xl mb-1">📁</div>
+          <div class="text-xs font-bold text-slate-700">② プロジェクト作成</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+          <div class="text-2xl mb-1">📺</div>
+          <div class="text-xs font-bold text-slate-700">③ YouTube機能をON</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+          <div class="text-2xl mb-1">🔑</div>
+          <div class="text-xs font-bold text-slate-700">④ キーをコピー</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 1 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+      <div class="flex items-start gap-4">
+        <div class="step-num">1</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">Google Cloud Console を開いて、ログインする</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            まず下のリンクを開きます。いつも使っている<strong>Googleアカウント</strong>（GmailなどのID）でログインしてください。
+          </p>
+          <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer"
+             class="mt-3 inline-block text-sm bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-indigo-700">
+            Google Cloud Console を開く ↗
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+      <div class="flex items-start gap-4">
+        <div class="step-num">2</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">「プロジェクト」を新しく作る</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            画面の上のほうにある「プロジェクトを選択」というところをクリックし、
+            <strong>「新しいプロジェクト」</strong>を選びます。名前はなんでもOKです（例:「youtube-extractor」）。
+          </p>
+
+          <div class="fake-window mt-4 max-w-sm">
+            <div class="fake-titlebar">
+              <span class="fake-dot bg-red-400"></span><span class="fake-dot bg-amber-400"></span><span class="fake-dot bg-emerald-400"></span>
+              <span class="ml-2 text-[10px] text-slate-400">console.cloud.google.com</span>
+            </div>
+            <div class="p-4">
+              <div class="text-[10px] text-slate-400 mb-2">上のバーのイメージ図</div>
+              <div class="relative inline-block">
+                <span class="fake-btn">📁 プロジェクトを選択 ▾</span>
+                <span class="point-ring"></span>
+              </div>
+              <div class="mt-3 text-[11px] text-slate-500">↓クリックすると出てくる</div>
+              <div class="mt-1 inline-block bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-bold text-indigo-600">
+                ＋ 新しいプロジェクト
+              </div>
+            </div>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">※ 実際の画面とは少し違いますが、だいたいこんな感じの場所にあります。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+      <div class="flex items-start gap-4">
+        <div class="step-num">3</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">「YouTube Data API v3」を探して、ONにする</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            左がわのメニューから「APIとサービス」→「ライブラリ」を選びます。
+            検索ボックスに<strong>「YouTube Data API v3」</strong>と入力して、出てきたものをクリックし、
+            <strong>「有効にする」</strong>ボタンを押します。
+          </p>
+
+          <div class="fake-window mt-4 max-w-sm">
+            <div class="fake-titlebar">
+              <span class="fake-dot bg-red-400"></span><span class="fake-dot bg-amber-400"></span><span class="fake-dot bg-emerald-400"></span>
+              <span class="ml-2 text-[10px] text-slate-400">console.cloud.google.com</span>
+            </div>
+            <div class="p-4 flex gap-3">
+              <div class="w-28 shrink-0 space-y-1">
+                <div class="fake-menu-item active">📚 ライブラリ</div>
+                <div class="fake-menu-item">🔑 認証情報</div>
+              </div>
+              <div class="flex-1">
+                <div class="text-[10px] bg-slate-100 rounded px-2 py-1 mb-2">🔍 YouTube Data API v3</div>
+                <div class="relative inline-block">
+                  <span class="fake-btn">✅ 有効にする</span>
+                  <span class="point-ring"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+      <div class="flex items-start gap-4">
+        <div class="step-num">4</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">「認証情報」から、キーを作る</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            左のメニューの「認証情報」をクリックし、上のほうにある
+            <strong>「認証情報を作成」→「APIキー」</strong>を選びます。
+          </p>
+
+          <div class="fake-window mt-4 max-w-sm">
+            <div class="fake-titlebar">
+              <span class="fake-dot bg-red-400"></span><span class="fake-dot bg-amber-400"></span><span class="fake-dot bg-emerald-400"></span>
+              <span class="ml-2 text-[10px] text-slate-400">console.cloud.google.com</span>
+            </div>
+            <div class="p-4 flex gap-3">
+              <div class="w-28 shrink-0 space-y-1">
+                <div class="fake-menu-item">📚 ライブラリ</div>
+                <div class="fake-menu-item active">🔑 認証情報</div>
+              </div>
+              <div class="flex-1">
+                <div class="relative inline-block">
+                  <span class="fake-btn">＋ 認証情報を作成 ▾</span>
+                  <span class="point-ring"></span>
+                </div>
+                <div class="mt-2 inline-block bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-bold text-indigo-600">
+                  APIキー
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+      <div class="flex items-start gap-4">
+        <div class="step-num">5</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">出てきた文字（キー）を、コピーする</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            「AIzaSy…」から始まる、長い英数字の文字が表示されます。これが<strong>APIキー</strong>です。
+            右がわのコピーのボタンを押して、コピーしておきましょう。
+          </p>
+
+          <div class="fake-window mt-4 max-w-sm">
+            <div class="fake-titlebar">
+              <span class="fake-dot bg-red-400"></span><span class="fake-dot bg-amber-400"></span><span class="fake-dot bg-emerald-400"></span>
+              <span class="ml-2 text-[10px] text-slate-400">APIキーを作成しました</span>
+            </div>
+            <div class="p-4">
+              <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                <span class="text-[11px] font-mono text-slate-600">AIzaSyD8x••••••••••••••••••</span>
+                <span class="relative inline-block ml-auto">
+                  <span class="fake-btn text-[10px] px-2 py-1">📋 コピー</span>
+                  <span class="point-ring"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800 leading-relaxed">
+            ⚠️ <strong>だいじな注意</strong>: このキーは、あなたのおうちの鍵と同じくらい大切なものです。
+            友だちや、知らない人に見せたり、SNSに貼ったりしないでください。
+            このツールでは、あとで「Google Apps Script」という<strong>裏側の場所</strong>にだけ保存するので、
+            ホームページの入力欄には入れません。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+      <div class="flex items-start gap-4">
+        <div class="step-num">6</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">（おすすめ）キーに「制限」をかけておく</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            キーの右がわにある鉛筆マーク（編集）を押すと「制限」の設定ができます。
+            「APIの制限」で <strong>YouTube Data API v3 だけ</strong>を選んでおくと、
+            もしキーが漏れてしまっても、YouTube検索以外には使われないようにできます。
+            自転車のカギを、その自転車専用にするようなイメージです。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-10">
+      <div class="flex items-start gap-4">
+        <div class="step-num">7</div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">1日に使える回数には、上限があります</h3>
+          <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+            このキーは無料ですが、<strong>1日に検索できる回数に上限</strong>があります
+            （1日ぶんの検索チケットが10,000枚、1回の検索で100枚使うイメージです）。
+            使いきってしまっても、次の日になればまた使えるようになります。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- できあがり -->
+    <section class="text-center bg-indigo-600 rounded-2xl p-8 text-white">
+      <div class="text-4xl mb-2">🎉</div>
+      <h2 class="text-xl font-bold">これでAPIキーの取得は完了です！</h2>
+      <p class="mt-2 text-indigo-100 text-sm">
+        コピーしたキーは、README の「2. Google Apps Script でバックエンドを作る」の手順で使います。
+      </p>
+      <a href="../README.md" class="mt-4 inline-block bg-white text-indigo-600 font-bold px-5 py-2.5 rounded-lg hover:bg-indigo-50">
+        READMEの続きに戻る →
+      </a>
+    </section>
+
+  </div>
+</body>
+</html>
