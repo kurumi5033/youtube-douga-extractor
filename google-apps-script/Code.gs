@@ -28,6 +28,7 @@
  * ===== シート構成 =====
  * (購入者)管理台帳: A コード / B 有効期限 / C 有効フラグ / D メモ
  *   - 有効フラグは TRUE / FALSE、有効期限は日付（空欄なら無期限）
+ *   - セルフ登録された行は、D列に「セルフ登録 日時」が自動で入る
  * 検索結果        : A 動画タイトル / B 動画URL / C サムネイルの画像 / D 再生数 / E 高評価数
  *                   / F 出演者 / G 検索日時 / H 使用したアクセスコード
  * 利用ログ        : A 日時 / B アクセスコード / C 出演者名 / D 該当件数 / E ステータス
@@ -42,6 +43,16 @@
  * アクセスコードの検証失敗が5分間に20回に達すると、5分間すべてのリクエストを拒否する
  * （総当たり対策。CacheServiceによる簡易実装のため、GASの実行環境が切り替わると
  *   カウントがリセットされる場合がある点は限界として認識しておくこと）。
+ *
+ * ===== セルフ登録（無料サンプル・先着順）=====
+ * 本ツールは金銭のやり取りなしの無料サンプルとして公開する想定です。
+ * 利用者はフォームから自分で合言葉（アクセスコード）を決めて登録でき、登録した瞬間に
+ * 有効フラグ TRUE で即利用可能になります（運営者の手動承認は行いません）。
+ * ただしYouTube Data APIの無料クォータ（1日10,000ユニット）を守るため、
+ * 台帳の登録数が MAX_REGISTRATIONS（スクリプト プロパティ。未設定時は20）に達すると、
+ * それ以降の新規登録は「満員」として拒否します。既存の合言葉での検索には影響しません。
+ * 緊急停止したい場合は、スクリプト プロパティの MAX_REGISTRATIONS を 0 にすると
+ * 新規登録だけを即座に止められます（既存の検索は止まりません）。
  *
  * ===== 月次アーカイブ =====
  * 毎月1日 0時台に archiveResultsSheet が自動実行され、
@@ -65,8 +76,17 @@ var FAILED_ATTEMPT_LIMIT = 20;       // この回数、失敗が続くとロッ�
 var FAILED_ATTEMPT_WINDOW_SECONDS = 300; // 失敗回数を数える期間（5分）
 var LOCKOUT_SECONDS = 300;           // ロックアウトの継続時間（5分）
 
+// ---- セルフ登録の上限（デフォルト。スクリプト プロパティ MAX_REGISTRATIONS で上書き可）----
+var DEFAULT_MAX_REGISTRATIONS = 20;
+
 function doGet(e) {
   var params = (e && e.parameter) || {};
+  var action = (params.action || '').toString().trim();
+
+  if (action === 'register') {
+    return handleRegister(params);
+  }
+
   var accessCode = (params.code || '').toString().trim();
   var rawPerformers = (params.performers || '').toString().trim();
 
@@ -209,6 +229,69 @@ function validateAccessCode(accessCode, props) {
   }
 
   return { ok: false, message: 'アクセスコードが正しくありません。' };
+}
+
+// ---- セルフ登録（無料サンプル・先着順、運営者の承認なしで即有効化）----
+function handleRegister(params) {
+  var props = PropertiesService.getScriptProperties();
+  var newCode = (params.newCode || '').toString().trim();
+
+  var ledgerSheetId = props.getProperty('LEDGER_SHEET_ID');
+  if (!ledgerSheetId) {
+    return jsonResponse({ error: 'サーバー側の設定が未完了です（管理者向け: LEDGER_SHEET_ID未設定）。' });
+  }
+
+  if (!newCode) {
+    return jsonResponse({ error: '登録する合言葉を入力してください。' });
+  }
+  if (newCode.length < 4) {
+    return jsonResponse({ error: '合言葉は4文字以上にしてください。' });
+  }
+  if (newCode.length > 50) {
+    return jsonResponse({ error: '合言葉は50文字以内にしてください。' });
+  }
+
+  var maxRegistrations = parseInt(props.getProperty('MAX_REGISTRATIONS'), 10);
+  if (!maxRegistrations && maxRegistrations !== 0) maxRegistrations = DEFAULT_MAX_REGISTRATIONS;
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+
+    var sheet = SpreadsheetApp.openById(ledgerSheetId).getSheets()[0];
+    var data = sheet.getDataRange().getValues();
+    var registeredCount = 0;
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var code = (row[0] || '').toString().trim();
+      if (!code) continue;
+
+      registeredCount++;
+      if (code === newCode) {
+        return jsonResponse({ error: 'その合言葉は既に使われています。別の合言葉を入力してください。' });
+      }
+    }
+
+    if (registeredCount >= maxRegistrations) {
+      logUsage(props, newCode, '', 0, '拒否: 定員到達（セルフ登録）');
+      return jsonResponse({ error: '大変申し訳ございません。只今、無料サンプルの定員に達しております。' });
+    }
+
+    sheet.appendRow([
+      sanitizeForSheet(newCode),
+      '',
+      true,
+      sanitizeForSheet('セルフ登録 ' + Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm')),
+    ]);
+
+    logUsage(props, newCode, '', 0, '登録: 成功');
+    return jsonResponse({ ok: true, message: '登録できました。このまま検索をお試しください。' });
+  } catch (err) {
+    return jsonResponse({ error: '登録処理に失敗しました。時間をおいて再度お試しください。' });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ---- 検索結果シートへの追記 ----

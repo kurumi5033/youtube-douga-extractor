@@ -14,6 +14,9 @@
       <p class="mt-2 text-sm text-slate-500">
         指定した出演者名で当月に公開された動画を検索し、タイトル・説明欄に一致する動画だけを抽出します。
       </p>
+      <p class="mt-2 inline-block text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1">
+        🎁 金銭のやり取りなしの無料サンプルです（先着順・登録数に上限があります）
+      </p>
     </header>
 
     <!-- 入力フォーム -->
@@ -52,6 +55,34 @@
           <p class="mt-2 text-xs text-slate-400">
             ※ YouTube Data APIキーはサーバー側で管理しており、このツールでは入力・保存の必要はありません。
           </p>
+
+          <details class="mt-3 group">
+            <summary class="cursor-pointer list-none inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 select-none">
+              <svg class="h-3 w-3 shrink-0 transition-transform group-open:rotate-90" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+              </svg>
+              🎟️ アクセスコードをお持ちでない方はこちら（新規登録・無料）
+            </summary>
+            <div class="mt-2 space-y-2 bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <label for="new-code" class="block text-xs font-medium text-slate-600">
+                お好きな合言葉を決めて登録してください（4〜50文字）
+              </label>
+              <div class="flex gap-2">
+                <input
+                  type="text" id="new-code"
+                  placeholder="例: 好きな言葉＋数字の組み合わせなど"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                <button type="button" id="register-button" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  登録する
+                </button>
+              </div>
+              <p id="register-message" class="text-xs hidden"></p>
+              <p class="text-xs text-slate-400">
+                ※ 登録すると即座に使えるようになります（承認待ちはありません）。ただし無料サンプルのため、定員（先着順）に達すると登録できなくなります。他の人がすでに使っている合言葉は登録できません。
+              </p>
+            </div>
+          </details>
         </div>
 
         <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs text-slate-500 leading-relaxed">
@@ -123,7 +154,7 @@
 
   // ===== 窓口サーバー（Google Apps Script）のWebアプリURL =====
   // google-apps-script/Code.gs をデプロイして発行された「.../exec」で終わるURLに書き換えてください。
-  const GAS_ENDPOINT_URL = 'https://script.google.com/macros/s/AKfycbwDYNe1CA-7EuGed8po7S5SobEtzNuNiaNcqY8n9qOEHtZNLIMyGsnG9tfCwTUAZkM0/exec';
+  const GAS_ENDPOINT_URL = 'https://script.google.com/macros/s/AKfycbzTNyQfhKEVwxu3Aif7Ch4TMZogprgv8kkM3DjhUN51uXuienDwyjI7F5VEIzvhwTpf/exec';
 
   // 1回のリクエストで受け付ける出演者名の数の上限（Code.gs側のMAX_PERFORMERS_PER_REQUESTと合わせること）
   const MAX_PERFORMERS = 3;
@@ -133,6 +164,9 @@
     performers: document.getElementById('performers'),
     accessCode: document.getElementById('access-code'),
     toggleCode: document.getElementById('toggle-code'),
+    newCode: document.getElementById('new-code'),
+    registerButton: document.getElementById('register-button'),
+    registerMessage: document.getElementById('register-message'),
     searchButton: document.getElementById('search-button'),
     searchButtonLabel: document.getElementById('search-button-label'),
     spinner: document.getElementById('loading-spinner'),
@@ -159,6 +193,7 @@
     els.form.addEventListener('submit', onSubmit);
     els.toggleCode.addEventListener('click', onToggleCodeVisibility);
     els.csvButton.addEventListener('click', onDownloadCsv);
+    els.registerButton.addEventListener('click', onRegister);
   }
 
   function onToggleCodeVisibility() {
@@ -278,6 +313,49 @@
     }
 
     return response.json();
+  }
+
+  // ---- セルフ登録 ----
+  function showRegisterMessage(text, isError) {
+    els.registerMessage.textContent = text;
+    els.registerMessage.className = 'text-xs ' + (isError ? 'text-red-600' : 'text-emerald-600');
+  }
+
+  async function onRegister() {
+    const newCode = els.newCode.value.trim();
+
+    if (!newCode) {
+      showRegisterMessage('登録する合言葉を入力してください。', true);
+      return;
+    }
+    if (GAS_ENDPOINT_URL.includes('YOUR_DEPLOYMENT_ID')) {
+      showRegisterMessage('管理者向けエラー: GAS_ENDPOINT_URL が未設定です。', true);
+      return;
+    }
+
+    els.registerButton.disabled = true;
+    try {
+      const url = new URL(GAS_ENDPOINT_URL);
+      url.searchParams.set('action', 'register');
+      url.searchParams.set('newCode', newCode);
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.error) {
+        showRegisterMessage(data.error, true);
+        return;
+      }
+
+      showRegisterMessage('登録できました！アクセスコード欄に自動で入力しました。', false);
+      els.accessCode.value = newCode;
+      localStorage.setItem(STORAGE_KEY, newCode);
+      els.newCode.value = '';
+    } catch (err) {
+      showRegisterMessage('登録処理に失敗しました。時間をおいて再度お試しください。', true);
+    } finally {
+      els.registerButton.disabled = false;
+    }
   }
 
   // ---- 結果描画 ----
